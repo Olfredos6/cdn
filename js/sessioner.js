@@ -32,24 +32,7 @@ sessioner.debounce = (func, wait, immediate) => {
     };
 };
 
-/* Saves loaded content in key-value pair with key being
-    the name on the back GamepadButton
-*/
-sessioner.get_auth_state = (callback=()=>{})=> {
-    $.ajax({
-        method: "GET",
-        url: "/auth/state",
-        success: res => {
-            sessioner.state = res
-        },
-        error: err => {
-            console.log(err)
-        },
-        complete: () => {
-            callback()
-        }
-    })
-}
+
 sessioner.save = _ => {
     let html = document.getElementById("top-card-body").innerHTML
     // only save if content is not empty
@@ -71,37 +54,6 @@ sessioner.getPrevious = _ => {
     }
 }
 
-sessioner.loadContent = (html, in_pop_up = false) => {
-    /*
-        in_pop_up: if true, the html content will be loaded in the pop-up
-    */
-    try {
-        if (html != menuHTML) {
-            // We only save the content if it's different from the menu
-            sessioner.save()
-        }
-        if (!in_pop_up) {
-            document.getElementById("top-card-body").innerHTML = html
-            sessioner.contentInPopUp = false
-        }
-        else {
-            /*
-                DESIGN PATTERN:
-                The modal should never take care of the styling and/or position of objects in it. 
-                Should make sure that everything is displayed as it should before inserting the
-                HTML content inside the modal. The HTML should include titles, footers and all that,
-                cause the modal will never have the nor cater for them!
-            */
-            sessioner.contentInPopUp = true
-            let container = document.getElementById("pop-up-container-body")
-            $("#pop-up-container").modal('show')
-            container.innerHTML = html
-        }
-
-    } catch{
-        console.log("Failed to load content: Sessioner")
-    }
-}
 
 sessioner.loadCentralContent = (title, content) => {
     html =
@@ -318,21 +270,6 @@ sessioner.loadMenu = _ => {
 
 }
 
-// Try to get the connected user's data
-sessioner.getCurrentAgentData = (callback = _ => { }) => {
-    $.ajax({
-        method: "GET",
-        url: "/banking/app/data/agent",
-        success: data => {
-            sessioner.currentAgent = data
-            callback();
-        },
-        error: response => {
-            console.log(`${response.status} getting agent data: ${response.statusText}. Retryinng in 3 seconds...`)
-            setInterval(sessioner.getCurrentAgentData, 3000)
-        }
-    })
-}
 
 sessioner.dateToReadable = val => {
     try {
@@ -360,56 +297,6 @@ sessioner.formatDate = (date) => {
 }
 
 // We start be asking if this guy is a client or not?
-sessioner.getIdentity = () => {
-    $.ajax({
-        method: "GET",
-        url: "/banking/app/accounts/get-identity/",
-        success: res => {
-            sessioner.identity = res
-        },
-        error: err => {
-            sessioner.displayServerFeedbackNotification(err.status, err.responseText ? err.responseText : err.responseText)
-        },
-        complete: _ => {
-            const newLocal = 5000;
-            if (sessioner.identity == "Y") {
-                setInterval(sessioner.getCurrentAgentData(), newLocal)
-                // Then we load the menu first of all
-                sessioner.loadMenu()
-            }
-            if (sessioner.identity == "X") {
-                setInterval(sessioner.getCurrentAgentData(
-                    _ => viewParentAccount(sessioner.currentAgent.banking_no, () => sessioner.displayServerFeedbackNotification(200, "Bienvenue sur la gestion de votre profil bancaire"))
-                ), newLocal)
-            }
-            if (sessioner.identity == "Z") {
-                const newLocal = 5250;
-                setInterval(sessioner.getCurrentAgentData(), newLocal)
-                // Then we load the menu first of all
-                sessioner.loadMenu()
-            }
-            if (sessioner.identity == "0") {
-                $.ajax({
-                    method: "GET",
-                    url: "",
-                    success: res => {
-                        sessioner = res
-                    }
-                });
-            }
-            if (sessioner.identity == "1") {
-                $.ajax({
-                    method: "GET",
-                    url: "",
-                    success: res => {
-                        sessioner = !res
-                    }
-                });
-            }
-            window.dispatchEvent(sessioner.ssexecEvent)
-        }
-    })
-}
 
 sessioner.compare = function (obj1, obj2) {
     let authorAt = "https://gist.github.com/nicbell/6081098"
@@ -443,45 +330,6 @@ sessioner.compare = function (obj1, obj2) {
 sessioner.showOptionsUnderAccountDetails = () => {
     document.querySelector('#account-details').lastElementChild.innerHTML = sessioner.optionsUnderAccountDetails
 }
-// GO!
-
-// Get the list of branches
-sessioner.get_auth_state(() => {
-    if (sessioner.state.is_auth == 1 || window.location.pathname.indexOf("banking/app/dashboard/") != -1) {
-        sessioner.getIdentity();
-
-        sessioner.get_branches();
-
-        try {
-            $(document).arrive("#account-details", function () {
-                // save the main menu displaying options of the currently connected guy
-                sessioner.optionsUnderAccountDetails = document.querySelector('#account-details').lastElementChild.innerHTML
-            });
-        } catch{
-            console.log("Failed to attach arrive.js")
-        }
-    }
-})
-
-
-sessioner.get_branches = () => $.ajax({
-    method: "GET",
-    url: "/api/data/branches/",
-    success: data => {
-        sessioner.branches = data
-        let d = {}
-        {
-            data.forEach(branch => {
-                if(d[branch.zone_name] == undefined) d[branch.zone_name] = []
-                d[branch.zone_name].push(branch.name)
-            });
-        }
-        sessioner.mapZoneBranch = d
-    },
-    error: response => {
-        console.log(`${response.status} : ${response.statusText}`)
-    }
-})
 
 
 sessioner.objectFilter = (obj, key, val) => {
@@ -594,48 +442,6 @@ sessioner.keep_witdh_at_percentage = (element_id, percentage)=>{
         // console.log($(document).height())
     }, 250)
 }
-
-
-sessioner.print = res_location => {
-    /*
-    Makes a call to the printing service to print the document located at
-    location. location is an url for now
-    */
-   $.ajax({
-       method: "POST",
-       url: "/services/",
-       data: JSON.stringify({'name': "print", 'args': {'url': location.origin + res_location}}),
-       success: res => {
-           sessioner.viewFile(res)
-       },
-       error: err => {
-        console.log(`Printing service ERROR : ${err.status + '>> ' + err.statusText?err.statusText:err.responseText}`)
-       }
-   })
-}
-
-sessioner.viewFile = file_name => {
-    window.open(`/file/${file_name}`, "_tab")
-}
-
-sessioner.gen_txt = () => {
-    /*
-    Makes a call to the printing service to print the document located at
-    location. location is an url for now
-    */
-   $.ajax({
-       method: "POST",
-       url: "/services/",
-       data: JSON.stringify({'name': "filetest"}),
-       success: res => {
-           console.log(`Printing service SUCCESS : ${res}`)
-       },
-       error: err => {
-        console.log(`Printing service ERROR : ${err.status + '>> ' + err.statusText?err.statusText:err.responseText}`)
-       }
-   })
-}
-
 
 /********************   SSEXEC  **********************************/
 sessioner.ssexec = () => {
