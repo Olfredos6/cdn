@@ -443,7 +443,31 @@ sessioner.keep_witdh_at_percentage = (element_id, percentage)=>{
     }, 250)
 }
 
-// runs function on location update
+sessioner.waitUntilDefined = (expression, timeout = 3) => {
+    return new Promise((resolveFn, reject) => {
+
+        let promise_interal = setInterval((resolve = resolveFn) => {
+            try {
+                let value = eval(expression)
+
+                if (value !== undefined) {
+                    clearInterval(promise_interal)
+                    resolve(value)
+                } else {
+                    if (!window.promise_out) {
+                        let promise_out = setTimeout(() => {
+                            resolve()
+                            clearInterval(promise_interal)
+                        }, timeout * 1000)
+                    }
+                }
+            } catch (e) { /* fail silent */ }
+        }, 100)
+    })
+
+}
+
+// runs function on location hash update
 sessioner.hashReducer = {
     fn: function () {
         // function to run whenever the hash value changes
@@ -457,7 +481,7 @@ sessioner.hashReducer = {
         // action -> function map
     }
 }
-sessioner.window.onhashchange = hashReducer.fn
+window.onhashchange = sessioner.hashReducer.fn
 
 
 
