@@ -443,6 +443,24 @@ sessioner.keep_witdh_at_percentage = (element_id, percentage)=>{
     }, 250)
 }
 
+// runs function on location update
+sessioner.hashReducer = {
+    fn: function () {
+        // function to run whenever the hash value changes
+        let hash = location.hash.replace("#", "")
+        if(sessioner.hashReducer.actions.hasOwnProperty(hash))
+            sessioner.hashReducer.actions[hash]()
+        else
+            console.log("No action registered for hash change")
+    },
+    actions: {
+        // action -> function map
+    }
+}
+sessioner.window.onhashchange = hashReducer.fn
+
+
+
 /********************   SSEXEC  **********************************/
 sessioner.ssexec = () => {
     /**
